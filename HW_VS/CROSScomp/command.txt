@@ -1,0 +1,7 @@
+- sudo ARCH=arm make defconfig
+- sudo ARCH=arm make menuconfig
+- sudo ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- make -j4 zImage
+-sudo ARCH=arm make dtbs
+-QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0" -nographic
+
+
