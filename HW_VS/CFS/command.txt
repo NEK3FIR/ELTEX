@@ -5,7 +5,7 @@
 - QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0" -nographic
 - make install (busybox)
 - find . | cpio -o -H newc | gzip >initramfs.cpio.gz
-- make defconfig
-- make menuconfig 
+- ARCH=arm make defconfig
+- ARCH=arm make menuconfig 
 - make -j 4
-- QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -initrd initramfs.cpio.gz -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0" rdinit=/bin/ash" -nographic
+- QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -initrd initramfs.cpio.gz -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0 rdinit=/bin/ash" -nographic
