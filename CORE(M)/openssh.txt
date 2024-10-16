@@ -1,0 +1,71 @@
+
+1 Установка компонентов для OpenSSH
+1.1 Клонируем репозиторий OpenSSH с GitHub:  
+git clone https://github.com/openssh/openssh-portable.git  
+1.2 Загружаем библиотеку zlib с сайта:  
+https://zlib.net/  
+1.3 Скачиваем OpenSSL по ссылке:  
+https://openssl-library.org/source/index.html  
+(Все ссылки на необходимые библиотеки находятся в файле openssh-portable/INSTALL)
+
+2 Компиляция zlib
+2.1 Переходим в директорию zlib-1.3.1.  
+2.2 Для просмотра доступных опций конфигурации используем команду:  
+./configure --help  
+Для сборки необходимо указать архитектуры с помощью переменной окружения CC, выбрав кросс-компилятор.  
+2.3 Конфигурируем с помощью:  
+CC=arm-linux-gnueabihf-gcc ./configure --static --prefix=$PWD/_install  
+2.4 Компилируем библиотеку:  
+make -j4  
+2.5 Устанавливаем библиотеку в директорию _install:  
+make install
+
+3 Компиляция OpenSSL
+3.1 Переходим в папку openssl-3.3.2.  
+3.2 Конфигурируем OpenSSL:  
+./Configure linux-generic32 no-shared no-dso --cross-compile-prefix=arm-linux-gnueabihf- --prefix=$PWD/_install --openssldir=$PWD/_install/ssl -fPIC  
+(флаг -fPIC обязателен согласно инструкции в openssh-portable/INSTALL)  
+3.3 Компилируем библиотеку:  
+make -j4  
+3.4 Устанавливаем в _install:  
+make install
+
+4 Компиляция OpenSSH
+4.1 Переходим в директорию openssh-portable.  
+4.2 Так как проект был загружен с Git, генерируем конфигурационные файлы с помощью:  
+autoreconf  
+4.3 Настраиваем сборку OpenSSH:  
+./configure --disable-strip --host=arm-linux-gnueabihf --prefix=$PWD/_install --with-zlib=$PWD/../zlib-1.3.1/_install --with-ssl-dir=$PWD/../openssl-3.3.2/_install  
+4.4 Компилируем OpenSSH:  
+make -j4  
+4.5 Устанавливаем в _install:  
+make install
+
+5 Сборка корневого архива файловой системы (initramfs)
+5.1 Перемещаем все файлы библиотек из папки _install в любую рабочую папку (например, RFS_Make).  
+5.2 Определяем необходимые разделяемые библиотеки для запуска ssh:  
+readelf -d ssh | grep "Shared library"  
+Ожидаемый результат включает libc.so.6 и ld-linux-armhf.so.3, которые также будут нужны для openssl.  
+5.3 Ищем эти библиотеки в /usr/arm-linux-gnueabihf/lib и копируем их в RFS_Make/lib.  
+5.4 Собираем архив файловой системы командой:  
+find . | cpio -o -H newc | gzip > initramfs.cpio.gz  
+5.5 Копируем архив в папку с образом ядра zImage и деревом устройств .dtb (например, arm_kernel).
+
+6 Запуск ядра и настройка ssh-сервисов
+6.1 Выполняем команду для запуска ядра:  
+QEMU_AUDIO_DRV=none qemu-system-arm -M vexpress-a9 -kernel zImage -initrd initramfs.cpio.gz -dtb vexpress-v2p-ca9.dtb -append "console=ttyAMA0 rdinit=/bin/ash" -m 512M -nographic  
+Параметр -m 512M выделяет 512 МБ оперативной памяти для системы.  
+6.2 Создаем каталоги для файловых систем:  
+mkdir proc sys  
+6.3 Монтируем файловые системы:  
+mount -t proc proc proc  
+mount -t sysfs sys sys  
+6.4 При попытке запустить ssh-keygen может возникнуть ошибка из-за отсутствия /dev/null. Создаем его:  
+mknod -m 666 /dev/null c 1 3  
+6.5 Запускаем ssh-keygen, создаем пользователя root:  
+echo "root:x:0:0:root:/root:/bin/sh" > /etc/passwd  
+echo "root:!:0:0:99999:7:::" > /etc/shadow  
+mkdir -p /root  
+Проверяем пользователя:  
+whoami  
+Теперь можно использовать ssh-службы, сборка завершена.
